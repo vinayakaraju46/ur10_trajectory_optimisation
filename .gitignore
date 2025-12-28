@@ -1,0 +1,9 @@
+build
+devel
+robotics-toolbox-python-master
+.catkin_workspace
+ikfast61_ur10*
+ur10*
+src/ur_*
+universal_robot
+panda_moveit_config
