@@ -94,10 +94,27 @@ void displayTimeStamps(const vector<ros::Duration> &timestamps) {
   cout << "Total Time taken to traverse the given points " << total_time << endl;
 }
 
-void executeMotionByPose(const vector<geometry_msgs::Pose> &waypoints, vector<pair<int, geometry_msgs::Pose>> &failed_poses, vector<ros::Duration> &timestamps) {
+void returnHome(moveit::planning_interface::MoveGroupInterface& move_group) {
+  std::cout << "Motion completed ! Now heading to home pose." << std::endl;
+  std::vector<double> home_pose = {
+        0.0, -1.57, 1.57, 0.0, 0.0, 0.0
+    };
+  move_group.setJointValueTarget(home_pose);
+  moveit::planning_interface::MoveGroupInterface::Plan plan;
+  bool success = (move_group.plan(plan) ==
+                  moveit::core::MoveItErrorCode::SUCCESS);
 
+  if (success)
+  {
+      ROS_INFO("Home Plan successful, executing...");
+      move_group.execute(plan);
+  }
+}
+
+void executeMotionByPose(const vector<geometry_msgs::Pose> &waypoints, vector<pair<int, geometry_msgs::Pose>> &failed_poses, vector<ros::Duration> &timestamps) {
   static const std::string PLANNING_GROUP = "vin_robot";
   moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
+  returnHome(move_group); // To make sure to start from home pose
   for(int i=0; i<waypoints.size(); ++i) {
     ros::Time exec_start = ros::Time::now();
     move_group.setPlanningPipelineId("ompl");
@@ -146,21 +163,19 @@ void executeMotionByPose(const vector<geometry_msgs::Pose> &waypoints, vector<pa
         failed_poses.push_back(failed_pair);
     }
   }
-
+  returnHome(move_group); // To return to the home pose
 }
 
 void executeMotionByJoints(vector<vector<double>> &joint_waypoints, vector<pair<int, vector<double>>> &failed_joint_poses, vector<ros::Duration> &joint_timestamps) {
-
   static const std::string PLANNING_GROUP = "vin_robot";
   moveit::planning_interface::MoveGroupInterface move_group(PLANNING_GROUP);
+  move_group.setPlanningPipelineId("ompl");
+  move_group.setPlannerId("RRT");
+
+  returnHome(move_group); // To make sure to start from home pose
   for(int i=0; i<joint_waypoints.size(); ++i) {
     ros::Time exec_start = ros::Time::now();
-    move_group.setPlanningPipelineId("ompl");
-
-    move_group.setPlannerId("RRT");
-
     move_group.setPlanningTime(5.0);
-
 
     ROS_INFO_STREAM("Planning frame: "
                     << move_group.getPlanningFrame());
@@ -193,11 +208,12 @@ void executeMotionByJoints(vector<vector<double>> &joint_waypoints, vector<pair<
         failed_joint_poses.push_back(failed_pair);
     }
   }
-
+  returnHome(move_group); // To make sure to start from home pose
 }
 
 int main(int argc, char** argv)
 {
+  int opt_type = std::stoi(argv[1]);
   ros::init(argc, argv, "moveit_pose_goal_cpp");
   ros::AsyncSpinner spinner(1);
   ros::Subscriber waypoint_sub_;
@@ -205,24 +221,29 @@ int main(int argc, char** argv)
 
   ros::NodeHandle n;
 
+  switch(opt_type) {
+    case 1: {
+      vector<pair<int, geometry_msgs::Pose>> failed_poses;
+      vector<ros::Duration> timestamps;
+      vector<geometry_msgs::Pose> waypoints;
+      string filename = "./points.json";
+      loadPoseWaypointsFromJSON(filename, waypoints);
+      executeMotionByPose(waypoints, failed_poses, timestamps);
+      displayWaypointsPair(failed_poses);
+      displayTimeStamps(timestamps);
+      break;
+    }
+    case 2: {
+      vector<pair<int, vector<double>>> failed_joint_poses;
+      vector<ros::Duration> joint_timestamps;
+      vector<vector<double>> joint_waypoints;
+      string filename = "./ik_sorted_solutions.json";
+      loadJointWaypointsFromJSON(filename, joint_waypoints);
+      executeMotionByJoints(joint_waypoints, failed_joint_poses, joint_timestamps);
+      displayTimeStamps(joint_timestamps);
+    }
+  }
 
-  vector<pair<int, geometry_msgs::Pose>> failed_poses;
-  vector<ros::Duration> timestamps;
-  vector<geometry_msgs::Pose> waypoints;
-  string filename = "./points.json";
-  loadPoseWaypointsFromJSON(filename, waypoints);
-  executeMotionByPose(waypoints, failed_poses, timestamps);
-  displayWaypointsPair(failed_poses);
-  displayTimeStamps(timestamps);
-
-  // vector<pair<int, vector<double>>> failed_joint_poses;
-  // vector<ros::Duration> joint_timestamps;
-  // vector<vector<double>> joint_waypoints;
-  // filename = "./ik_sorted_solutions.json";
-  // loadJointWaypointsFromJSON(filename, joint_waypoints);
-  // executeMotionByJoints(joint_waypoints, failed_joint_poses, joint_timestamps);
-  // displayTimeStamps(joint_timestamps);
-  
   ros::shutdown();
   return 0;
 }

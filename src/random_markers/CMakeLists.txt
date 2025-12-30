@@ -218,7 +218,7 @@ include_directories(
 
 
 add_executable(random_markers
-  src/random_markers_node.cpp
+  src/generate_waypoints_tsp.cpp
 )
 
 target_link_libraries(random_markers
