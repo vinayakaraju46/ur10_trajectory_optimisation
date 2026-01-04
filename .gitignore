@@ -7,3 +7,4 @@ ur10*
 src/ur_*
 universal_robot
 panda_moveit_config
+pinocchio_*
