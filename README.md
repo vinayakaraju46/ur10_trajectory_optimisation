@@ -53,6 +53,7 @@ rosrun random_markers random_markers_node
 - Implement dynamic programming techniques to reduce repeated joint distance calculations.
 - Explore alternative TSP heuristics and exact solutions for better optimization.
 - Add analytics and comparisons between different TSP approaches.
+- Use Manipulability factor from pinocchio to rank the next best waypoint from the current joint configuration.
 
 ## Repository Structure
 
